@@ -11,6 +11,7 @@ from pymongo import MongoClient
 from bson.binary import Binary
 import pickle
 import pymongo
+from datetime import datetime
 
 def removeNonAscii(s): return "".join(i for i in s if ord(i)<128)
 
@@ -97,22 +98,6 @@ maxScrappingResults = 2000
 # f = open(filename,"w")
 
 class Car:
-    # def __init__(self, title, firstResistration, mileAge, power, type, fuelType, gearBoxType, color, doorsNumber, consumption, CO2, priceATI, priceWT, url):
-    #     self.title = title
-    #     self.firstResistration = firstResistration
-    #     self.mileAge = mileAge
-    #     self.power = power
-    #     self.type = type
-    #     self.fuelType = fuelType
-    #     self.gearBoxType = gearBoxType
-    #     self.color = color
-    #     self.doorsNumber = doorsNumber
-    #     self.consumption = consumption
-    #     self.CO2 = CO2
-    #     self.priceATI = priceATI
-    #     self.priceWT = priceWT
-    #     self.url = url
-
     def __init__(self, scrapedList,url):
         i=1
         self.title = scrapedList[i][0]
@@ -127,7 +112,7 @@ class Car:
         self.priceWT = " "
 
         for i in range(len(scrapedList)):
-            if "km" in scrapedList[i][0] and "Distance" not in scrapedList[i][0] and "CO2" not in scrapedList[i][0] and "Consommation" not in scrapedList[i][0] and "Professionnel" not in scrapedList[i][0] and "" not in scrapedList[i][0]:
+            if "km" in scrapedList[i][0] and "Distance" not in scrapedList[i][0] and "CO2" not in scrapedList[i][0] and "Consommation" not in scrapedList[i][0] and "Professionnel" not in scrapedList[i][0] and "Particulier" not in scrapedList[i][0]:
                 ageMiles = list(csv.reader(StringIO(scrapedList[i][0]),delimiter=','))
                 if "km" in ageMiles[0][0]:
                     tempMiles = ageMiles[0][0]
@@ -137,8 +122,14 @@ class Car:
                     tempMiles = ageMiles[0][1]
                 tempMiles = tempMiles.replace("km","")
                 tempMiles = tempMiles.replace(" ","")
-                self.miles = int(tempMiles)
-                self.firstResistration = tempFirstRegistration
+                try:
+                  self.miles = int(tempMiles)
+                except ValueError:
+                  self.miles = tempMiles
+                try:
+                  self.firstResistration = datetime.strptime(tempFirstRegistration.replace(" ",""), '%m/%Y')
+                except ValueError:
+                  self.firstResistration = tempFirstRegistration
 
             elif "kW" in scrapedList[i][0]:
                 self.power = scrapedList[i][0]
@@ -156,27 +147,6 @@ class Car:
         if url is not None:
             self.url = url
         else: self.url = " "
-        # else:
-        #     typeFuelGearB = list(csv.reader(StringIO(scrapedList[5][0]),delimiter=','))
-        #     self.type = typeFuelGearB[0][0]
-        #     self.fuelType = typeFuelGearB[0][1]
-        #     self.gearBoxType = typeFuelGearB[0][2]
-        #
-        #     colNbDoor = list(csv.reader(StringIO(scrapedList[6][0]),delimiter=','))
-        #     self.color = colNbDoor[0][0]
-        #     if(len(colNbDoor[0])>1):
-        #         self.doorsNumber = colNbDoor[0][1]
-        #     else: self.doorsNumber = " "
-        #
-        #     self.CO2 = scrapedList[7][0]
-        #
-        #     self.priceATI = scrapedList[8][0]
-        #
-        #     if "HT" in scrapedList[9][0]:
-        #         self.priceWT = scrapedList[9][0]
-        #     else:
-        #         self.priceWT = '0'
-
 
 
     def __str__(self):
@@ -209,16 +179,17 @@ coll = db.test
 for i in range(50000):
     roughArticles = driver.find_elements(By.CLASS_NAME,'list-entry')
     for a in roughArticles:
-        carAttList = list(csv.reader(StringIO(a.text),delimiter='\n'))
-        try:
-            carurl = a.find_element_by_class_name('vehicle-data').get_attribute('href')
-        except NoSuchElementException:
-            carul = " "
-        print(carAttList)
-        car = Car(carAttList,carurl)
-        coll.insert_one(car.toMongo())
-        # toWrite=', '.join(map(str, car))
-        # f.write(toWrite)
+      carAttList = list(csv.reader(StringIO(a.text),delimiter='\n'))
+      try:
+          carurl = a.find_element_by_class_name('vehicle-data').get_attribute('href')
+      except NoSuchElementException:
+          carul = " "
+
+      print(carAttList)
+      car = Car(carAttList,carurl)
+      coll.insert_one(car.toMongo())
+      # toWrite=', '.join(map(str, car))
+      # f.write(toWrite)
     # print(str(len(cars))
     try:
         driver.find_element_by_class_name('pagination-nav-right').click()
