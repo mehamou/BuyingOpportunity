@@ -197,22 +197,39 @@ class Car:
 cars=[]
 uncounteredCondition = True
 
+firstArticleURL = getURL(driver.find_element_by_class_name('list-entry'))
+driver.get(firstArticleURL)
+time.sleep(0.5)
 # browsing all ads
 while uncounteredCondition:
-    roughArticles = driver.find_elements(By.CLASS_NAME,'list-entry')
-
-
-    for a in roughArticles:
-      carAttList = list(csv.reader(StringIO(a.text),delimiter='\n'))
-      carurl = getURL(a)
-      carAttList.append(carurl)
-      cars.append(carAttList)
-    break
-    #moving to next pages
     try:
-        driver.find_element_by_class_name('pagination-nav-right').click()
+        navArrows = driver.find_elements(By.CLASS_NAME,'nav-arrow')
+
+        lastNavArrows = len(navArrows)
+        if lastNavArrows > 0:
+            lastNavArrows = lastNavArrows - 1
+            navArrows[lastNavArrows].click()
+            time.sleep(0.5)
+        else:
+            driver.find_element_by_class_name('btn').click()
+            firstArticleURL = getURL(driver.find_element_by_class_name('list-entry'))
+            driver.get(firstArticleURL)
+            time.sleep(0.5)
     except NoSuchElementException:
+        print("element not found")
         break
+    #
+    # for a in roughArticles:
+    #   carAttList = list(csv.reader(StringIO(a.text),delimiter='\n'))
+    #   carurl = getURL(a)
+    #   carAttList.append(carurl)
+    #   cars.append(carAttList)
+    # break
+    # #moving to next pages
+    # try:
+    #     driver.find_element_by_class_name('pagination-nav-right').click()
+    # except NoSuchElementException:
+    #     break
 
 
 
@@ -228,14 +245,12 @@ while uncounteredCondition:
   # car = Car(carAttList,carurl)
   # coll.insert_one(car.toMongo())
 # browing all car detailed pages
-from selenium.webdriver.support.ui import WebDriverWait
-def document_initialised(driver):
-    return driver.execute_script("return initialised")
 
-for i in range(len(cars)):
-    url = len(cars[i])-1
-    driver.get(cars[i][url])
-    WebDriverWait(driver,timeout=3).until(document_initialised)
+#
+# for i in range(len(cars)):
+#     url = len(cars[i])-1
+#     driver.get(cars[i][url])
+#     WebDriverWait(driver,timeout=3).until(document_initialised)
 #closing driver windows
 driver.quit()
 # f.close
