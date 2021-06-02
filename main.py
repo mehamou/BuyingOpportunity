@@ -11,7 +11,8 @@ from pymongo import MongoClient
 from bson.binary import Binary
 import pickle
 import pymongo
-from datetime import datetime
+from datetime import datetime, date
+
 
 def removeNonAscii(s): return "".join(i for i in s if ord(i)<128)
 
@@ -20,11 +21,11 @@ def checkingBoxes(driver,cbID):
         try:
             webelt = driver.find_element_by_id(cbID)
             driver.execute_script("arguments[0].click();", webelt)
-            time.sleep(1)
+            # time.sleep(1)
             break
         except NoSuchElementException as e:
             print('Retry check the box in 1 second')
-            time.sleep(1)
+            # time.sleep(1)
         else:
             raise e
 
@@ -36,7 +37,18 @@ def expandAll(driver,className):
     expandElts = driver.find_elements(By.CLASS_NAME,className)
     for webElt in expandElts:
         driver.execute_script("arguments[0].click();", webElt)
-        time.sleep(1)
+        # time.sleep(1)
+
+def getURL(a):
+    try:
+      carurl = a.find_element_by_class_name('vehicle-data').get_attribute('href')
+    except NoSuchElementException:
+      carurl = " "
+    return carurl
+
+def num_months(start_date,end_date):
+    numMonth = (end_date. year - start_date. year) * 12 + (end_date. month - start_date. month)
+    return numMonth
 
 #driver setting
 DRIVER_PATH = '/Users/mehdihamou/Documents/ChromeDriver/chromedriver'
@@ -53,14 +65,14 @@ driver.find_element_by_xpath("//select[@name='makeModelVariant1.make']/option[te
 time.sleep(3)
 driver.find_element_by_xpath("//select[@name='makeModelVariant1.model']/option[text()='A3']").click()
 driver.find_element_by_xpath("//select[@name='minFirstRegistration']/option[text()='2016']").click()
-time.sleep(3)
+# time.sleep(3)
 driver.find_element_by_xpath("//select[@name='maxMileage']/option[@value='100000']").click()
 driver.find_element_by_xpath("//select[@name='fuelType']/option[text()='Diesel']").click()
 # driver.find_element_by_class_name('search-btn').click()
 # makeModelVariant1.modelDescription
 #submitting button
 driver.find_element_by_class_name('search-btn').click()
-time.sleep(3)
+# time.sleep(3)
 
 #setting the remaining parameters
 
@@ -81,27 +93,27 @@ driver.find_element_by_id('countryCode').find_element_by_xpath("//option[text()=
 driver.find_element_by_class_name('btn--orange').click()
 
 #Retrieving number of results
-roughStr = driver.find_element_by_class_name('search-result-header').get_attribute('data-result-count')
-roughStr = removeNonAscii(roughStr)
-nbResults = int(roughStr)
+# roughStr = driver.find_element_by_class_name('search-result-header').get_attribute('data-result-count')
+# roughStr = removeNonAscii(roughStr)
+# nbResults = int(roughStr)
 
 #setting results number per page to max
 pageNumber = 50
 driver.find_element_by_class_name('results-per-page').find_element_by_xpath("//a[text()='"+str(pageNumber)+"']").click()
 
-cars=[]
-#browsing all pages
-print(nbResults)
-maxScrappingResults = 2000
 
-# filename = "carsStoring"+str(datetime.now(tz=None))
-# f = open(filename,"w")
+# #browsing all pages
+# print(nbResults)
+# maxScrappingResults = 2000
 
 class Car:
     def __init__(self, scrapedList,url):
+        # first element is title of the ad
         i=1
         self.title = scrapedList[i][0]
         i+=1
+
+        # setting all parameters to empty string
         self.firstResistration = " "
         self.miles = " "
         self.power = " "
@@ -110,8 +122,10 @@ class Car:
         self.CO2 = " "
         self.priceATI = " "
         self.priceWT = " "
+        self.ratioMileRegis = " "
 
         for i in range(len(scrapedList)):
+            # catching mileAge and First registration date
             if "km" in scrapedList[i][0] and "Distance" not in scrapedList[i][0] and "CO2" not in scrapedList[i][0] and "Consommation" not in scrapedList[i][0] and "Professionnel" not in scrapedList[i][0] and "Particulier" not in scrapedList[i][0]:
                 ageMiles = list(csv.reader(StringIO(scrapedList[i][0]),delimiter=','))
                 if "km" in ageMiles[0][0]:
@@ -125,22 +139,34 @@ class Car:
                 try:
                   self.miles = int(tempMiles)
                 except ValueError:
-                  self.miles = tempMiles
+                  self.miles = 0
                 try:
                   self.firstResistration = datetime.strptime(tempFirstRegistration.replace(" ",""), '%m/%Y')
                 except ValueError:
-                  self.firstResistration = tempFirstRegistration
+                  self.firstResistration = datetime.today()
+                try:
+                    self.ratioMileRegis = self.miles / num_months(self.firstResistration,date.today())
+                except ValueError:
+                    self.ratioMileRegis = ""
+                except ZeroDivisionError:
+                    self.ratioMileRegis = 0
 
+            #catching power
             elif "kW" in scrapedList[i][0]:
                 self.power = scrapedList[i][0]
+            #catching fuel type
             elif "Diesel" in scrapedList[i][0]:
                 self.typeFuelGearB = scrapedList[i][0]
+            # catching nb doors
             elif "portes" in scrapedList[i][0] or "Couleur" in scrapedList[i][0]:
                 self.colNbDoor = scrapedList[i][0]
+            # catching co2 consumption
             elif "CO2" in scrapedList[i][0]:
                 self.CO2 = scrapedList[i][0]
+            # catching price all taxes included
             elif "TTC" in scrapedList[i][0]:
                 self.priceATI = scrapedList[i][0]
+            # catching price without taxes
             elif "HT" in scrapedList[i][0]:
                 self.priceWT = scrapedList[i][0]
 
@@ -152,11 +178,13 @@ class Car:
     def __str__(self):
         return 'title: '+self.title+', firstResistration: '+self.firstResistration+', mileAge: '+self.mileAge+', power: '+self.power+', type: '+self.type+', fuelType: '+self.fuelType+', gearBoxType: '+self.gearBoxType+', url: '+self.url
 
+    # function to return structure before sending the information to mongo
     def toMongo(self):
         return {
             "title":self.title,
             "firstResistration":self.firstResistration,
             "Miles":self.miles,
+            "ratio Mile Registration":self.ratioMileRegis,
             "power":self.power,
             "type, fuel, gearBoxType": self.typeFuelGearB,
             "colors, doors number":self.colNbDoor,
@@ -166,35 +194,48 @@ class Car:
             "url":self.url,
         }
 
-#opening connection to mongodb
-client = pymongo.MongoClient(
-   "mongodb+srv://pyaccess:MZMde6jVAM5px3J@cluster0.3b9aj.mongodb.net/test?retryWrites=true&w=majority&connect=false")
+cars=[]
+uncounteredCondition = True
 
-db = client['ScrappedCars']
-
-db.test.drop()
-coll = db.test
-
-
-for i in range(50000):
+# browsing all ads
+while uncounteredCondition:
     roughArticles = driver.find_elements(By.CLASS_NAME,'list-entry')
+
+
     for a in roughArticles:
       carAttList = list(csv.reader(StringIO(a.text),delimiter='\n'))
-      try:
-          carurl = a.find_element_by_class_name('vehicle-data').get_attribute('href')
-      except NoSuchElementException:
-          carul = " "
-
-      print(carAttList)
-      car = Car(carAttList,carurl)
-      coll.insert_one(car.toMongo())
-      # toWrite=', '.join(map(str, car))
-      # f.write(toWrite)
-    # print(str(len(cars))
+      carurl = getURL(a)
+      carAttList.append(carurl)
+      cars.append(carAttList)
+    break
+    #moving to next pages
     try:
         driver.find_element_by_class_name('pagination-nav-right').click()
     except NoSuchElementException:
         break
+
+
+
+#opening connection to mongodb
+# client = pymongo.MongoClient(
+#    "mongodb+srv://pyaccess:MZMde6jVAM5px3J@cluster0.3b9aj.mongodb.net/test?retryWrites=true&w=majority&connect=false")
+#
+# db = client['ScrappedCars']
+#
+# db.test.drop()
+# coll = db.test
+# storing data to mongodb
+  # car = Car(carAttList,carurl)
+  # coll.insert_one(car.toMongo())
+# browing all car detailed pages
+from selenium.webdriver.support.ui import WebDriverWait
+def document_initialised(driver):
+    return driver.execute_script("return initialised")
+
+for i in range(len(cars)):
+    url = len(cars[i])-1
+    driver.get(cars[i][url])
+    WebDriverWait(driver,timeout=3).until(document_initialised)
 #closing driver windows
 driver.quit()
 # f.close
