@@ -50,61 +50,16 @@ def num_months(start_date,end_date):
     numMonth = (end_date. year - start_date. year) * 12 + (end_date. month - start_date. month)
     return numMonth
 
-#driver setting
-DRIVER_PATH = '/Users/mehdihamou/Documents/ChromeDriver/chromedriver'
-driver = webdriver.Chrome(executable_path=DRIVER_PATH)
-
-#page opening
-driver.get("https://www.automobile.fr/")
-
-#removing cookies bot message
-driver.find_element_by_xpath("//button[@id='gdpr-consent-accept-button']").click()
-
-#search paramaters settings
-driver.find_element_by_xpath("//select[@name='makeModelVariant1.make']/option[text()='Audi']").click()
-time.sleep(3)
-driver.find_element_by_xpath("//select[@name='makeModelVariant1.model']/option[text()='A3']").click()
-driver.find_element_by_xpath("//select[@name='minFirstRegistration']/option[text()='2016']").click()
-# time.sleep(3)
-driver.find_element_by_xpath("//select[@name='maxMileage']/option[@value='100000']").click()
-driver.find_element_by_xpath("//select[@name='fuelType']/option[text()='Diesel']").click()
-# driver.find_element_by_class_name('search-btn').click()
-# makeModelVariant1.modelDescription
-#submitting button
-driver.find_element_by_class_name('search-btn').click()
-# time.sleep(3)
-
-#setting the remaining parameters
-
-#before setting parameters we need to expand all the Options
-expandAll(driver,'expand-label')
-
-checkingBoxes(driver,'gearBox_AUTOMATIC_GEAR')
-checkingBoxes(driver,'features_ALLOY_WHEELS')
-checkingBoxes(driver,'advertOption_PICTURES')
-
-setInputBoxes(driver,'location-name-input','68300')
-setInputBoxes(driver,'location-radius-input','1000')
-
-
-driver.find_element_by_id('countryCode').find_element_by_xpath("//option[text()='Allemagne']").click()
-
-#submitting remaining parameters
-driver.find_element_by_class_name('btn--orange').click()
-
 #Retrieving number of results
-# roughStr = driver.find_element_by_class_name('search-result-header').get_attribute('data-result-count')
-# roughStr = removeNonAscii(roughStr)
-# nbResults = int(roughStr)
+def getNbResults(driver):
+    roughStr = driver.find_element_by_class_name('search-result-header').get_attribute('data-result-count')
+    roughStr = removeNonAscii(roughStr)
+    return int(roughStr)
 
-#setting results number per page to max
-pageNumber = 50
-driver.find_element_by_class_name('results-per-page').find_element_by_xpath("//a[text()='"+str(pageNumber)+"']").click()
-
-
-# #browsing all pages
-# print(nbResults)
-# maxScrappingResults = 2000
+def nav_to_first_detailed_page(driver):
+    firstArticleURL = getURL(driver.find_element_by_class_name('list-entry'))
+    driver.get(firstArticleURL)
+    time.sleep(1)
 
 class Car:
     def __init__(self, scrapedList,url):
@@ -194,42 +149,103 @@ class Car:
             "url":self.url,
         }
 
-cars=[]
+#driver setting
+DRIVER_PATH = '/Users/mehdihamou/Documents/ChromeDriver/chromedriver'
+driver = webdriver.Chrome(executable_path=DRIVER_PATH)
+
+#page opening
+driver.get("https://www.automobile.fr/")
+
+#removing cookies bot message
+driver.find_element_by_xpath("//button[@id='gdpr-consent-accept-button']").click()
+
+#search paramaters settings
+driver.find_element_by_xpath("//select[@name='makeModelVariant1.make']/option[text()='Audi']").click()
+time.sleep(3)
+driver.find_element_by_xpath("//select[@name='makeModelVariant1.model']/option[text()='A3']").click()
+driver.find_element_by_xpath("//select[@name='minFirstRegistration']/option[text()='2016']").click()
+# time.sleep(3)
+driver.find_element_by_xpath("//select[@name='maxMileage']/option[@value='100000']").click()
+driver.find_element_by_xpath("//select[@name='fuelType']/option[text()='Diesel']").click()
+# driver.find_element_by_class_name('search-btn').click()
+# makeModelVariant1.modelDescription
+#submitting button
+driver.find_element_by_class_name('search-btn').click()
+# time.sleep(3)
+
+#setting the remaining parameters
+
+#before setting parameters we need to expand all the Options
+expandAll(driver,'expand-label')
+
+checkingBoxes(driver,'gearBox_AUTOMATIC_GEAR')
+checkingBoxes(driver,'features_ALLOY_WHEELS')
+checkingBoxes(driver,'advertOption_PICTURES')
+
+setInputBoxes(driver,'location-name-input','68300')
+setInputBoxes(driver,'location-radius-input','1000')
+
+
+driver.find_element_by_id('countryCode').find_element_by_xpath("//option[text()='Allemagne']").click()
+
+#submitting remaining parameters
+driver.find_element_by_class_name('btn--orange').click()
+
+#setting results number per page to max
+pageNumber = 50
+driver.find_element_by_class_name('results-per-page').find_element_by_xpath("//a[text()='"+str(pageNumber)+"']").click()
+
+
+
+# #browsing all pages
+# print(nbResults)
+# maxScrappingResults = 2000
+
+
+
+
+# cars=[]
 uncounteredCondition = True
 
-firstArticleURL = getURL(driver.find_element_by_class_name('list-entry'))
-driver.get(firstArticleURL)
-time.sleep(0.5)
+nav_to_first_detailed_page(driver)
 # browsing all ads
 while uncounteredCondition:
+    # founding consulted page and compare to number of results
+    try:
+        roughtAdNumber = driver.find_element_by_class_name('u-inline').text
+        print(roughtAdNumber)
+        pagesVSresults=list(csv.reader(StringIO(roughtAdNumber),delimiter='/'))
+        if (pagesVSresults[0][0]==pagesVSresults[0][1]):
+            break
+    except NoSuchElementException:
+        print("number details not found")
+
+    # founding car details
+    try:
+        title = driver.find_element_by_class_name('h2').text
+        prices = driver.find_element_by_class_name('h3').text
+        print(title+" "+prices)
+    except NoSuchElementException:
+        print("cars details not found")
+
+    # navigating through the next car
     try:
         navArrows = driver.find_elements(By.CLASS_NAME,'nav-arrow')
-
         lastNavArrows = len(navArrows)
         if lastNavArrows > 0:
             lastNavArrows = lastNavArrows - 1
             navArrows[lastNavArrows].click()
-            time.sleep(0.5)
+            time.sleep(1)
         else:
-            driver.find_element_by_class_name('btn').click()
-            firstArticleURL = getURL(driver.find_element_by_class_name('list-entry'))
-            driver.get(firstArticleURL)
-            time.sleep(0.5)
+            try:
+                driver.find_element_by_class_name('btn').click()
+                nav_to_first_detailed_page(driver)
+            except NoSuchElementException:
+                print("get back to result research button not found")
     except NoSuchElementException:
-        print("element not found")
+        print("nav arrow element not found")
         break
-    #
-    # for a in roughArticles:
-    #   carAttList = list(csv.reader(StringIO(a.text),delimiter='\n'))
-    #   carurl = getURL(a)
-    #   carAttList.append(carurl)
-    #   cars.append(carAttList)
-    # break
-    # #moving to next pages
-    # try:
-    #     driver.find_element_by_class_name('pagination-nav-right').click()
-    # except NoSuchElementException:
-    #     break
+
 
 
 
