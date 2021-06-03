@@ -210,16 +210,6 @@ uncounteredCondition = True
 nav_to_first_detailed_page(driver)
 # browsing all ads
 while uncounteredCondition:
-    # founding consulted page and compare to number of results
-    try:
-        roughtAdNumber = driver.find_element_by_class_name('u-inline').text
-        print(roughtAdNumber)
-        pagesVSresults=list(csv.reader(StringIO(roughtAdNumber),delimiter='/'))
-        if (pagesVSresults[0][0]==pagesVSresults[0][1]):
-            break
-    except NoSuchElementException:
-        print("number details not found")
-
     # founding car details
     try:
         title = driver.find_element_by_class_name('h2').text
@@ -227,6 +217,19 @@ while uncounteredCondition:
         print(title+" "+prices)
     except NoSuchElementException:
         print("cars details not found")
+
+    # founding consulted page and compare to number of results
+    try:
+        roughtAdNumber = driver.find_element_by_class_name('u-inline').text
+        print(roughtAdNumber)
+        pagesVSresults=list(csv.reader(StringIO(roughtAdNumber),delimiter='/'))
+        print(pagesVSresults)
+        currentPage = pagesVSresults[0][0].replace(" ","")
+        numberResult = pagesVSresults[0][1].replace(" ","")
+        if (currentPage==numberResult):
+            break
+    except NoSuchElementException:
+        print("number details not found")
 
     # navigating through the next car
     try:
