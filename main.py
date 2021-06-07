@@ -61,6 +61,12 @@ def nav_to_first_detailed_page(driver):
     driver.get(firstArticleURL)
     time.sleep(1)
 
+def readKMString(inputString):
+    return int(inputString.replace("km","").replace(" ",""))
+
+def convertStringMYtoDate(inputString):
+    return datetime.strptime(inputString.replace(" ",""), '%m/%Y')
+
 class Car:
     def __init__(self, scrapedList,url):
         # first element is title of the ad
@@ -163,7 +169,7 @@ driver.find_element_by_xpath("//button[@id='gdpr-consent-accept-button']").click
 driver.find_element_by_xpath("//select[@name='makeModelVariant1.make']/option[text()='Audi']").click()
 time.sleep(3)
 driver.find_element_by_xpath("//select[@name='makeModelVariant1.model']/option[text()='A3']").click()
-driver.find_element_by_xpath("//select[@name='minFirstRegistration']/option[text()='2016']").click()
+driver.find_element_by_xpath("//select[@name='minFirstRegistration']/option[text()='2020']").click()
 # time.sleep(3)
 driver.find_element_by_xpath("//select[@name='maxMileage']/option[@value='100000']").click()
 driver.find_element_by_xpath("//select[@name='fuelType']/option[text()='Diesel']").click()
@@ -214,7 +220,17 @@ while uncounteredCondition:
     try:
         title = driver.find_element_by_class_name('h2').text
         prices = driver.find_element_by_class_name('h3').text
+        carDetails = driver.find_element_by_class_name('vip-box').find_elements(By.CLASS_NAME,'g-row')
         print(title+" "+prices)
+        for detail in carDetails:
+            temp = list(csv.reader(StringIO(detail.text),delimiter='\n'))
+            print(temp)
+                # if len(temp[0])>1:
+                #     print("premiere case: "+temp[0][0])
+                #     print("deuxieme case: "+temp[0][1])
+            # print(detail.find_element(By.TAG_NAME, "g-col-6").text)
+            # print(detail.get_attribute("innerHTML"))
+            # print(detail.find_element_by_tag_name('span').text)
     except NoSuchElementException:
         print("cars details not found")
 

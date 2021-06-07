@@ -9,4 +9,4 @@ def document_initialised(driver):
 DRIVER_PATH = '/Users/mehdihamou/Documents/ChromeDriver/chromedriver'
 
 driver = webdriver.Chrome(executable_path=DRIVER_PATH)
-driver.get("https://www.autoscout24.fr/")
+driver.get("https://www.leboncoin.fr/")
