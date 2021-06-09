@@ -12,7 +12,7 @@ from bson.binary import Binary
 import pickle
 import pymongo
 from datetime import datetime, date
-
+import json
 
 def removeNonAscii(s): return "".join(i for i in s if ord(i)<128)
 
@@ -67,93 +67,31 @@ def readKMString(inputString):
 def convertStringMYtoDate(inputString):
     return datetime.strptime(inputString.replace(" ",""), '%m/%Y')
 
-class Car:
-    def __init__(self, scrapedList,url):
-        # first element is title of the ad
-        i=1
-        self.title = scrapedList[i][0]
-        i+=1
+def readgRows(carAttributes,carDetails):
+    for detail in carAttributes:
+        temp = list(csv.reader(StringIO(detail.text),delimiter='\n'))
+        carDetails.append([temp[0][0],temp[1][0]])
 
-        # setting all parameters to empty string
-        self.firstResistration = " "
-        self.miles = " "
-        self.power = " "
-        self.typeFuelGearB = " "
-        self.colNbDoor = " "
-        self.CO2 = " "
-        self.priceATI = " "
-        self.priceWT = " "
-        self.ratioMileRegis = " "
+def readCarDetail(driver):
+    carDetails = [['title',driver.find_element_by_class_name('h2').text]]
+    carDetails.append(['prices',driver.find_element_by_class_name('h3').text])
+    carAttributes = driver.find_element_by_class_name('attributes-box').find_elements(By.CLASS_NAME,'g-row')
+    readgRows(carAttributes,carDetails)
+    carTechData = driver.find_element_by_class_name('further-tec-data').find_elements(By.CLASS_NAME,'g-row')
+    readgRows(carTechData,carDetails)
+    optionElts = driver.find_elements(By.CLASS_NAME,'g-col-s-6')
+    optionStr = ""
+    first = True
+    for optionEl in optionElts:
+        if first:
+            first = False
+        else:
+            optionStr+=';'
+        optionStr+=optionEl.text
+    carDetails.append(['options',optionStr])
+    carDetails.append(['url',driver.current_url])
+    return carDetails
 
-        for i in range(len(scrapedList)):
-            # catching mileAge and First registration date
-            if "km" in scrapedList[i][0] and "Distance" not in scrapedList[i][0] and "CO2" not in scrapedList[i][0] and "Consommation" not in scrapedList[i][0] and "Professionnel" not in scrapedList[i][0] and "Particulier" not in scrapedList[i][0]:
-                ageMiles = list(csv.reader(StringIO(scrapedList[i][0]),delimiter=','))
-                if "km" in ageMiles[0][0]:
-                    tempMiles = ageMiles[0][0]
-                    tempFirstRegistration = "01/2021"
-                else:
-                    tempFirstRegistration = ageMiles[0][0]
-                    tempMiles = ageMiles[0][1]
-                tempMiles = tempMiles.replace("km","")
-                tempMiles = tempMiles.replace(" ","")
-                try:
-                  self.miles = int(tempMiles)
-                except ValueError:
-                  self.miles = 0
-                try:
-                  self.firstResistration = datetime.strptime(tempFirstRegistration.replace(" ",""), '%m/%Y')
-                except ValueError:
-                  self.firstResistration = datetime.today()
-                try:
-                    self.ratioMileRegis = self.miles / num_months(self.firstResistration,date.today())
-                except ValueError:
-                    self.ratioMileRegis = ""
-                except ZeroDivisionError:
-                    self.ratioMileRegis = 0
-
-            #catching power
-            elif "kW" in scrapedList[i][0]:
-                self.power = scrapedList[i][0]
-            #catching fuel type
-            elif "Diesel" in scrapedList[i][0]:
-                self.typeFuelGearB = scrapedList[i][0]
-            # catching nb doors
-            elif "portes" in scrapedList[i][0] or "Couleur" in scrapedList[i][0]:
-                self.colNbDoor = scrapedList[i][0]
-            # catching co2 consumption
-            elif "CO2" in scrapedList[i][0]:
-                self.CO2 = scrapedList[i][0]
-            # catching price all taxes included
-            elif "TTC" in scrapedList[i][0]:
-                self.priceATI = scrapedList[i][0]
-            # catching price without taxes
-            elif "HT" in scrapedList[i][0]:
-                self.priceWT = scrapedList[i][0]
-
-        if url is not None:
-            self.url = url
-        else: self.url = " "
-
-
-    def __str__(self):
-        return 'title: '+self.title+', firstResistration: '+self.firstResistration+', mileAge: '+self.mileAge+', power: '+self.power+', type: '+self.type+', fuelType: '+self.fuelType+', gearBoxType: '+self.gearBoxType+', url: '+self.url
-
-    # function to return structure before sending the information to mongo
-    def toMongo(self):
-        return {
-            "title":self.title,
-            "firstResistration":self.firstResistration,
-            "Miles":self.miles,
-            "ratio Mile Registration":self.ratioMileRegis,
-            "power":self.power,
-            "type, fuel, gearBoxType": self.typeFuelGearB,
-            "colors, doors number":self.colNbDoor,
-            "CO2":self.CO2,
-            "priceATI":self.priceATI,
-            "priceWT":self.priceWT,
-            "url":self.url,
-        }
 
 #driver setting
 DRIVER_PATH = '/Users/mehdihamou/Documents/ChromeDriver/chromedriver'
@@ -207,39 +145,39 @@ driver.find_element_by_class_name('results-per-page').find_element_by_xpath("//a
 # print(nbResults)
 # maxScrappingResults = 2000
 
-
-
-
 # cars=[]
 uncounteredCondition = True
+
+# opening connection to mongodb
+client = pymongo.MongoClient(
+   "mongodb+srv://pyaccess:MZMde6jVAM5px3J@cluster0.3b9aj.mongodb.net/test?retryWrites=true&w=majority&connect=false")
+
+db = client['ScrappedCars']
+
+db.test.drop()
+coll = db.test
 
 nav_to_first_detailed_page(driver)
 # browsing all ads
 while uncounteredCondition:
+
     # founding car details
     try:
-        title = driver.find_element_by_class_name('h2').text
-        prices = driver.find_element_by_class_name('h3').text
-        carDetails = driver.find_element_by_class_name('vip-box').find_elements(By.CLASS_NAME,'g-row')
-        print(title+" "+prices)
-        for detail in carDetails:
-            temp = list(csv.reader(StringIO(detail.text),delimiter='\n'))
-            print(temp)
-                # if len(temp[0])>1:
-                #     print("premiere case: "+temp[0][0])
-                #     print("deuxieme case: "+temp[0][1])
-            # print(detail.find_element(By.TAG_NAME, "g-col-6").text)
-            # print(detail.get_attribute("innerHTML"))
-            # print(detail.find_element_by_tag_name('span').text)
+        carDetails = readCarDetail(driver)
+
+
+
+        # storing data to mongodb
+        coll.insert_one(dict(carDetails))
+
+
     except NoSuchElementException:
         print("cars details not found")
 
     # founding consulted page and compare to number of results
     try:
         roughtAdNumber = driver.find_element_by_class_name('u-inline').text
-        print(roughtAdNumber)
         pagesVSresults=list(csv.reader(StringIO(roughtAdNumber),delimiter='/'))
-        print(pagesVSresults)
         currentPage = pagesVSresults[0][0].replace(" ","")
         numberResult = pagesVSresults[0][1].replace(" ","")
         if (currentPage==numberResult):
@@ -268,17 +206,8 @@ while uncounteredCondition:
 
 
 
-#opening connection to mongodb
-# client = pymongo.MongoClient(
-#    "mongodb+srv://pyaccess:MZMde6jVAM5px3J@cluster0.3b9aj.mongodb.net/test?retryWrites=true&w=majority&connect=false")
-#
-# db = client['ScrappedCars']
-#
-# db.test.drop()
-# coll = db.test
-# storing data to mongodb
-  # car = Car(carAttList,carurl)
-  # coll.insert_one(car.toMongo())
+
+
 # browing all car detailed pages
 
 #
