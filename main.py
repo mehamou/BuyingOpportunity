@@ -109,7 +109,7 @@ time.sleep(3)
 driver.find_element_by_xpath("//select[@name='makeModelVariant1.model']/option[text()='A3']").click()
 driver.find_element_by_xpath("//select[@name='minFirstRegistration']/option[text()='2020']").click()
 # time.sleep(3)
-driver.find_element_by_xpath("//select[@name='maxMileage']/option[@value='100000']").click()
+driver.find_element_by_xpath("//select[@name='maxMileage']/option[@value='5000']").click()
 driver.find_element_by_xpath("//select[@name='fuelType']/option[text()='Diesel']").click()
 # driver.find_element_by_class_name('search-btn').click()
 # makeModelVariant1.modelDescription
@@ -139,12 +139,6 @@ driver.find_element_by_class_name('btn--orange').click()
 pageNumber = 50
 driver.find_element_by_class_name('results-per-page').find_element_by_xpath("//a[text()='"+str(pageNumber)+"']").click()
 
-
-
-# #browsing all pages
-# print(nbResults)
-# maxScrappingResults = 2000
-
 # cars=[]
 uncounteredCondition = True
 
@@ -164,13 +158,8 @@ while uncounteredCondition:
     # founding car details
     try:
         carDetails = readCarDetail(driver)
-
-
-
         # storing data to mongodb
         coll.insert_one(dict(carDetails))
-
-
     except NoSuchElementException:
         print("cars details not found")
 
@@ -203,18 +192,11 @@ while uncounteredCondition:
         print("nav arrow element not found")
         break
 
+#Starting to compute all data
+cursor = coll.find({})
 
+for document in cursor:
+    print(document)
 
-
-
-
-# browing all car detailed pages
-
-#
-# for i in range(len(cars)):
-#     url = len(cars[i])-1
-#     driver.get(cars[i][url])
-#     WebDriverWait(driver,timeout=3).until(document_initialised)
-#closing driver windows
+client.close()
 driver.quit()
-# f.close
